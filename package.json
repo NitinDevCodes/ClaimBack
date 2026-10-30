@@ -1,0 +1,16 @@
+{
+  "name": "claimback-ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["client", "server"],
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "concurrently -k -n API,WEB -c cyan,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w client",
+    "start": "npm run start -w server",
+    "test": "npm run test -w server",
+    "check": "npm run test && npm run build"
+  },
+  "devDependencies": { "concurrently": "^9.2.1" }
+}
