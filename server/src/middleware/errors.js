@@ -12,7 +12,8 @@ export function errorHandler(error, req, res, next) {
   let message = error instanceof AppError ? error.message : 'Something went wrong. Please try again.';
   if (error.type === 'entity.parse.failed') [status, code, message] = [400, 'INVALID_JSON', 'The request body must be valid JSON.'];
   if (error.type === 'entity.too.large') [status, code, message] = [413, 'PAYLOAD_TOO_LARGE', 'The request body is too large.'];
-  if (error.code === 11000) [status, code, message] = [409, 'CONFLICT', 'An account with this email already exists.'];
+  if (error.code === 11000) [status, code, message] = [409, 'CONFLICT', 'This record already exists or conflicts with another active record.'];
+  if (error.name === 'MulterError') [status, code, message] = [400, 'INVALID_UPLOAD', 'Upload up to three images, each no larger than 5 MB.'];
   if (error.name === 'ValidationError') [status, code, message] = [400, 'VALIDATION_ERROR', 'Some fields are invalid.'];
   if (['MongoServerSelectionError', 'MongoNetworkError', 'MongoNotConnectedError'].includes(error.name)) {
     [status, code, message] = [503, 'DATABASE_UNAVAILABLE', 'The database is unavailable. Please try again later.'];

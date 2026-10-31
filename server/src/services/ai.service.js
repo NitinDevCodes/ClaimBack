@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import { categories } from '../models/Report.js';
 import { logger } from '../utils/logger.js';
+import { providerDiagnostic } from '../utils/providerDiagnostics.js';
 
 const terms = z.array(z.string().trim().max(120)).max(20);
 export const attributesSchema = z.object({
@@ -30,9 +31,9 @@ export function createAI(env, client) {
       } });
       if (!result.text || result.text.length > 30000) throw new Error('InvalidResponse');
       return schema.parse(JSON.parse(result.text));
-    } catch {
+    } catch (error) {
       // Provider errors may contain request bodies or credentials; never log raw errors.
-      logger.info('ai_unavailable', { fallback: true });
+      logger.info('ai_unavailable', { fallback: true, ...providerDiagnostic(error) });
       return null;
     }
   }

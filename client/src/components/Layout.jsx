@@ -33,8 +33,8 @@ export function Layout() {
       <Brand />
       <button className="menu-toggle" aria-expanded={menuOpen} aria-controls="main-navigation" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
       <nav className={`navigation ${menuOpen ? 'is-open' : ''}`} id="main-navigation" aria-label="Main navigation">
-        <NavLink to="/" end>Overview</NavLink><a href="/#how-it-works">How it works</a><a href="/#responsible-ai">Our approach</a>
-        {user ? <><NavLink to="/account">My account</NavLink><Button variant="ghost" loading={signingOut} onClick={signOut}><LogOut size={16} /> Sign out</Button></> : <><NavLink to="/login" className="nav-login">Log in</NavLink><Link to="/register" className="button button-primary nav-cta">Get started <ArrowUpRight size={16} /></Link></>}
+        <NavLink to="/reports">Browse items</NavLink><NavLink to="/reports/new">Report an item</NavLink><a href="/#how-it-works">How it works</a>
+        {user ? <><NavLink to="/dashboard">Dashboard</NavLink><NavLink to="/notifications">Updates</NavLink><Button variant="ghost" loading={signingOut} onClick={signOut}><LogOut size={16} /> Sign out</Button></> : <><NavLink to="/login" className="nav-login">Log in</NavLink><Link to="/register" className="button button-primary nav-cta">Get started <ArrowUpRight size={16} /></Link></>}
       </nav>
     </div></header>
     <main id="main" tabIndex={-1}><Outlet /></main>

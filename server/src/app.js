@@ -11,8 +11,10 @@ import { errorHandler, notFound } from './middleware/errors.js';
 import { protectMutation, requireDatabase } from './middleware/security.js';
 import { AppError } from './utils/AppError.js';
 import { logger } from './utils/logger.js';
+import { reportRoutes } from './routes/report.routes.js';
+import { workflowRoutes } from './routes/workflow.routes.js';
 
-export function createApp(env, { getDatabaseStatus = databaseStatus, logRequests = true } = {}) {
+export function createApp(env, { getDatabaseStatus = databaseStatus, logRequests = true, services = {} } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', env.TRUST_PROXY);
@@ -21,7 +23,7 @@ export function createApp(env, { getDatabaseStatus = databaseStatus, logRequests
     res.set('X-Request-Id', req.id);
     if (logRequests) {
       const started = performance.now();
-      res.on('finish', () => logger.info('http_request', { requestId: req.id, method: req.method, status: res.statusCode, durationMs: Math.round(performance.now() - started) }));
+      res.on('finish', () => logger.info('http_request', { requestId: req.id, method: req.method, route: req.route ? `${req.baseUrl || ''}${req.route.path}` : 'unmatched_route', status: res.statusCode, durationMs: Math.round(performance.now() - started) }));
     }
     next();
   });
@@ -47,6 +49,8 @@ export function createApp(env, { getDatabaseStatus = databaseStatus, logRequests
   app.use(cookieParser());
   app.use('/api/v1/auth', requireDatabase(getDatabaseStatus), authRoutes(env));
   app.use('/api/v1/users', requireDatabase(getDatabaseStatus), userRoutes(env));
+  app.use('/api/v1/reports', requireDatabase(getDatabaseStatus), reportRoutes(env, services));
+  app.use('/api/v1', requireDatabase(getDatabaseStatus), workflowRoutes(env));
   app.use(notFound);
   app.use(errorHandler);
   return app;

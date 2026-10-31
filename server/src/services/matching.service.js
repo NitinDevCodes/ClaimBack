@@ -18,13 +18,16 @@ export function createMatching(ai) {
   const running = new Map();
   async function calculate(source) {
     // Bounded candidate retrieval and one batch AI request, never all-pairs comparison.
-    const pool = await Report.find({ type: source.type === 'lost' ? 'found' : 'lost', owner: { $ne: source.owner }, status: 'open', moderation: 'visible', deletedAt: null,
+    const pool = await Report.find({ type: source.type === 'lost' ? 'found' : 'lost', owner: { $ne: source.owner }, status: 'open', moderation: 'visible', deletedAt: null, ...(source.category !== 'other' && { category: { $in: [source.category, 'other'] } }),
       occurredAt: { $gte: new Date(new Date(source.occurredAt).getTime() - 90 * 86400000), $lte: new Date(new Date(source.occurredAt).getTime() + 90 * 86400000) },
-    }).sort({ category: 1, createdAt: -1 }).limit(100).lean();
+    }).sort({ createdAt: -1 }).limit(100).lean();
     const candidates = pool.map((report) => ({ report, ...fallbackScore(source, report) })).sort((a, b) => b.score - a.score).slice(0, 8);
-    const ranked = candidates.length ? await ai.rank(source, candidates.map((c) => c.report)) : null;
+    const cache = await Match.find({ source: source._id, sourceRevision: source.revision, expiresAt: { $gt: new Date() } }).lean();
+    const stale = candidates.filter((c) => !cache.some((m) => String(m.candidate) === String(c.report._id) && m.candidateRevision === c.report.revision));
+    const ranked = stale.length ? await ai.rank(source, stale.map((c) => c.report)) : null;
     const now = new Date();
     for (const candidate of candidates) {
+      if (!stale.includes(candidate)) continue;
       const semantic = ranked?.find((r) => r.id === String(candidate.report._id));
       const existing = await Match.findOne({ source: source._id, candidate: candidate.report._id });
       const record = { score: semantic ? Math.round(semantic.score * .7 + candidate.score * .3) : candidate.score,

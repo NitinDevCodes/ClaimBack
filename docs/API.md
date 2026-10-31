@@ -1,49 +1,65 @@
-# API contract
+# API contracts
 
-Base URL: `/api/v1`. JSON input only for current mutations. Cookies are sent with `credentials: include`; Axios uses `withCredentials: true`.
+Base: `/api/v1`. Success envelope: `{success:true,data:...}`. Errors: `{success:false,error:{code,message,details?,requestId}}`. List responses contain `items,page,limit,total,pages`. Default page size 12, maximum 50. IDs are validated as ObjectIds.
 
-Success: `{ "success": true, "data": { ... } }`.
+Mutations require a trusted `Origin`, `X-Requested-With: ClaimBack`, and JSON, except report create/update which also accept multipart. Cookie authentication is HTTP-only; the browser must send credentials. All API responses use `Cache-Control: no-store`.
 
-Failure: `{ "success": false, "error": { "code": "VALIDATION_ERROR", "message": "...", "details": [{ "field": "email", "message": "..." }], "requestId": "..." } }`. Details are optional. Unknown errors never expose stacks. Every response has `X-Request-Id`.
+## Health and identity
 
-## Implemented routes
-
-| Method | Route | Access | Response |
-| --- | --- | --- | --- |
-| GET | `/health` | Public | 200 liveness, service name and database state |
-| GET | `/health/ready` | Public | 200 when Mongo is connected; 503 otherwise |
-| POST | `/auth/register` | Public + origin/header guard | 201 public user + session cookie |
-| POST | `/auth/login` | Public + origin/header guard | 200 public user + session cookie |
-| POST | `/auth/logout` | Session + origin/header guard | 200; clears cookie and revokes user's sessions |
-| GET | `/auth/me` | Session | 200 current public user |
-| PATCH | `/users/me` | Session + origin/header guard | 200 updated public user |
-
-Register body: `{ "name": "Your name", "email": "you@example.com", "password": "at-least-12-bytes" }`. Login body: `{ "email": "you@example.com", "password": "..." }`. Profile body: `{ "name": "Updated name" }`. Unknown fields are rejected; role, email, status and password cannot be updated through the profile endpoint. Password changes/email verification will need their own flows.
-
-Public user: `id, name, email, role, createdAt`. Never passwordHash or tokenVersion. Current roles: `user`, `admin`. Account statuses: `active`, `suspended`.
-
-All mutations require `Origin: <an exact CLIENT_ORIGIN>` and `X-Requested-With: ClaimBack`. Registration and login are rate limited (20 requests / 15 minutes); all API traffic is limited (300 / 15 minutes). Statuses include 400 validation, 401 invalid credentials/session, 403 authorization/origin, 404 route not found, 409 duplicate email, 413 payload too large, 415 wrong content type, 429 rate limit, 503 database unavailable.
-
-## Planned routes — not implemented or advertised as callable
-
-| Area | Method and route | Access / constraints |
+| Method | Path | Access / request |
 | --- | --- | --- |
-| Reports | `GET /reports` | Public, visible projection, bounded pagination |
-| Reports | `GET /reports/:id` | Public; private/moderated data owner/admin only |
-| Reports | `POST /reports` | Authenticated; validated multipart upload |
-| Reports | `PATCH /reports/:id`, `DELETE /reports/:id` | Owner/admin; audit and image cleanup |
-| Analysis | `POST /reports/:id/analyze` | Owner, strict quota, correction provenance |
-| Matches | `GET /reports/:id/matches`, `POST /reports/:id/matches/refresh` | Owner; persisted bounded results |
-| Interest | `POST /matches/:id/interest` | Owner of source report; idempotent |
-| Claims | `POST /reports/:id/claims` | Authenticated non-owner; private evidence |
-| Claims | `GET /claims/mine`, `GET /claims/:id` | Claimant/admin; evidence only when authorized |
-| Claims | `PATCH /claims/:id/withdraw` | Claimant; pending state only |
-| Dashboard | `GET /dashboard`, `GET /reports/mine` | Own counts/history/reports only |
-| Notifications | `GET /notifications`, `PATCH /notifications/:id/read` | Recipient only |
-| Admin | `GET /admin/analytics`, `GET /admin/users` | Admin only |
-| Admin | `PATCH /admin/users/:id/status` | Admin; cannot remove last active admin |
-| Admin | `GET /admin/reports`, `PATCH /admin/reports/:id/moderation` | Admin; reason required |
-| Admin | `GET /admin/claims`, `PATCH /admin/claims/:id/review` | Admin; transaction + history |
-| Handover | `POST /admin/claims/:id/handover` | Admin; atomic recovery transition |
+| GET | /health | Public liveness, database status |
+| GET | /health/ready | 200 only with connected DB; otherwise 503 |
+| POST | /auth/register | `{name,email,password}`; creates regular user only |
+| POST | /auth/login | `{email,password}` |
+| POST | /auth/logout | Auth; `{}`; revokes all existing sessions |
+| GET | /auth/me | Auth; safe current-user projection |
+| PATCH | /users/me | Auth; `{name}` |
 
-Future report queries: `type`, `category`, `location`, `from`, `to`, `q`, `page` (>=1), `limit` (1–24). Sort newest first by default. All query fields will be parsed as scalars and explicitly mapped; arbitrary Mongo filter objects are forbidden. Match score means similarity only.
+## Reports and matches
+
+| Method | Path | Contract |
+| --- | --- | --- |
+| GET | /reports | Public, visible nondeleted reports; `q,type,category,location,from,to,status,page,limit`. Default status open. `q` uses MongoDB text index; location is escaped literal substring. |
+| GET | /reports/:id | Public detail, no account IDs or Cloudinary public IDs |
+| GET | /reports/mine | Auth, paginated own reports including hidden reports |
+| GET | /reports/:id/manage | Owner-only editable detail and revision |
+| GET | /reports/:id/access | Auth; `{isOwner}` without disclosing owner identity |
+| POST | /reports | Auth; JSON or multipart, fields below. Returns `{report,matches,matchingStatus}` |
+| PATCH | /reports/:id | Owner; partial editable fields plus required `revision`. Multipart photo replacements supported. |
+| DELETE | /reports/:id | Owner; `{}`. Soft-deletes report, removes public images and cached matches. Forbidden with active claims or recovery history. |
+| PATCH | /reports/:id/attributes | Owner; `{revision,attributes}`. Validated correction replaces extracted attributes and invalidates cached matches. |
+| GET | /reports/:id/matches | Owner; ranked suggestions with `id,score,explanation,method,interested,report` |
+| POST | /reports/matches/:matchId/interest | Source owner; `{}`. Idempotent interest and recipient notification. |
+
+Create fields: `type` lost/found, `title` 3–120, `description` 10–3000, `category`, optional `colour` <=80, `location` 2–200, `occurredAt` parseable date. Categories: electronics, bags, wallets, keys, documents, jewellery, clothing, other. Multipart files use repeated `images`, up to 3 × 5 MB. JPEG/PNG/WebP only, actual decode required, <=20 megapixels, no animations. Output JPEG is resized <=1600px and metadata is stripped.
+
+Update cannot change type or owner. `status` may change between open/closed. `clearImages: "true"` removes old photos; uploaded replacements take priority. Revision conflicts and active claim locks return 409. Reserved/recovered reports are immutable to owners.
+
+Attributes: `{object,category,colours,brand,characteristics,distinctiveFeatures,keywords,improvedDescription}`. Strings bounded; lists <=20 entries (colours <=8), each <=120 characters. Additional fields rejected. Analysis status is complete, corrected, unavailable or pending.
+
+## Claims and recovery
+
+| Method | Path | Contract |
+| --- | --- | --- |
+| POST | /claims | Auth; `{reportId,privateEvidence,lostReportId?}`. Evidence 20–5000 characters. Found item must be open, visible and owned by someone else. Optional linked lost report must belong to claimant. |
+| GET | /claims | Own claims; optional status, pagination. Admin can use `scope=review` for all claims. Lists never contain evidence. |
+| GET | /claims/:id | Claimant/admin only; evidence, history, report. Admin additionally receives finder/claimant name and email for coordination. |
+| PATCH | /claims/:id | `{action,reason}`; reason 5–1000. Claimant can withdraw pending claim. Independent admin can approve/reject pending claim or record handover for approved claim. |
+
+Transitions: pending → approved/rejected/withdrawn; approved → handed_over. Approval reserves report, rejects competing pending claims, optionally reserves linked lost report, appends history and creates notifications in one transaction. Handover marks associated reports recovered in one transaction. A partial unique index guarantees one approved/handed-over claim per found report. Each claimant has at most one claim per found report. No AI ownership decisions.
+
+## Workspaces
+
+| Method | Path | Contract |
+| --- | --- | --- |
+| GET | /dashboard | Own live report/claim aggregates, recent reports, cached matches and unread count |
+| GET | /notifications | Own paginated notices and unread count |
+| PATCH | /notifications/:id/read | Own notice; `{}`. Use `all` to mark all own notices read. |
+| GET | /admin/stats | Admin: users, reports by type/category, claims by state |
+| GET | /admin/users | Admin; optional q (name/email), pagination |
+| PATCH | /admin/users/:id | Admin; `{status:"active"|"suspended"}`. Regular users only; revokes sessions. |
+| GET | /admin/reports | Admin; optional moderation hidden/visible, pagination |
+| PATCH | /admin/reports/:id | Admin; `{moderation,reason}`. Reason 5–300, sent to owner. |
+
+General limit: 300 requests / 15 minutes per IP. Auth attempts: 20 / 15 minutes. Report create/update and match retrieval: 20 / hour per authenticated account. Private evidence never appears in public report responses, notifications, ordinary logs or Gemini requests.

@@ -1,114 +1,61 @@
-# ClaimBack AI architecture
+# Architecture
 
-## Scope and milestones
+## Boundaries
 
-This repository starts with a tested foundation, as requested in the first-execution instructions. It is not yet a complete recovery platform. Do not present planned capabilities as shipped features.
+The existing npm-workspace MERN application is retained. Vite/React handles navigation, forms and presentation. Express owns authentication, validation, provider calls, matching and transactional recovery. MongoDB Atlas is the application database. There is no runtime local-database fallback.
 
-1. **Foundation (implemented):** npm workspaces, Express API, validated configuration, MongoDB lifecycle, React/Vite/Tailwind, public landing page, reusable components, live service status, security middleware, error contract, deployment examples, and tests.
-2. **Identity (implemented):** registration, login, logout, current session, profile updates, password hashing, JWT cookies, authenticated routes, and backend role guard. No public admin registration.
-3. **Reports (next):** real CRUD, public browsing with search/filter/pagination, detail pages, Cloudinary photo uploads, owner authorization, moderation, and upload tests.
-4. **Image understanding:** backend-only Gemini adapter, structured output validation, user-editable attributes, bounded image handling, persisted analysis state, timeout/quota fallback, and tests.
-5. **Smart matching:** indexed candidate retrieval, deterministic ranking, one bounded semantic comparison call, explanations, cached results, interest actions, and tests.
-6. **Claims and recovery:** private evidence, admin review, audited transitions, exclusive approval, confirmed handover, notifications, and authorization/race-condition tests.
-7. **Dashboards and release:** database-backed statistics, reports/matches/claims/recovery views, admin analytics and management, accessibility/browser testing, Atlas/Cloudinary/Gemini smoke tests, and deployment.
-
-Test each milestone before progressing. Do not populate production with demo reports or invented metrics. The current account page contains actual session information, not dashboard statistics.
-
-## System
-
-```mermaid
-flowchart LR
-  B[React browser / Vercel] -->|HTTPS + JWT cookie| E[Express API / Render]
-  E --> M[(MongoDB Atlas)]
-  E --> C[Cloudinary image storage]
-  E --> G[Google Gemini via @google/genai]
-  G --> V[Validate structured output]
-  V --> M
+```
+client/src/
+  components/       Shared layout, access guard, form/card/list primitives
+  contexts/         Authentication and toast state
+  hooks/            Abortable API resource loading and refresh
+  pages/            Public reports, report editor/detail, dashboards, claims, notices
+  lib/api.js        Credentialed Axios client and normalized error messages
+server/src/
+  config/           Module-relative environment loading, existing Mongo DNS opt-in
+  middleware/       Authentication, role guards, mutation-origin checks, errors
+  models/           User, Report, Match, Claim, Notification
+  routes/           Endpoint wiring, upload and costly-request limits
+  controllers/      HTTP contracts, ownership checks, pagination, admin views
+  services/         Auth, Gemini, Cloudinary/normalization, matching, claim transactions
+  utils/            Safe logging, diagnostics, query validation
+  scripts/          Explicit index setup and operator-only administrator grant
+server/test/        Isolated Mongo/replica-set integration and provider-contract tests
+server/scripts/     Disposable synthetic browser demo (never Atlas)
 ```
 
-One backend service is sufficient. Browser requests never receive service credentials. MongoDB holds application data; Cloudinary holds bounded image uploads. Gemini enriches reports and suggests similarity; only humans decide claims. API controllers handle HTTP concerns; services own workflows; models enforce persistence rules; middleware handles authentication, authorization, validation, and failures.
+## Report lifecycle
 
-## Layout
+Public browse exposes visible, nondeleted reports. Public serializers omit owner IDs, provider asset IDs and all claim evidence. Owners manage only their own reports. Edits use a numeric revision to reject stale writes; claim submission and all review transitions write that same report to serialize competing operations. Active claims lock report details and AI corrections. Reserved/recovered reports cannot be edited or deleted by their owners. Deletion is soft at the report level; uploaded images and cached matches are removed, while nonpublic history remains.
 
-```text
-client/
-  public/                 Local brand assets
-  src/
-    components/           Shared layout, feedback and route guards
-    contexts/             Session and toast state
-    lib/                  Axios and API error helpers
-    pages/                Landing, auth, account and service status
-    App.jsx               React Router routes
-    styles.css            Tailwind and design system
-server/
-  src/
-    config/               Environment and database lifecycle
-    controllers/          HTTP request handlers
-    middleware/           Auth, origin protection, validation, errors
-    models/               User, Report, Match, Claim, Notification
-    routes/               Versioned routers
-    services/             Identity logic; future AI/upload/workflows
-    utils/                Errors and structured logging
-    app.js                Express factory (no listening side effect)
-    server.js             Startup and graceful shutdown
-  test/                   HTTP integration and security tests
-docs/                     Architecture and API contracts
-```
+## Image and Gemini pipeline
 
-## Data design
+Authenticated multipart → bounded in-memory Multer parser → Sharp actual-image validation (JPEG/PNG/WebP; no animations; max 20MP) → auto-rotate, downsize <=1600px, metadata-free JPEG → backend Cloudinary stream upload → Gemini inline normalized bytes plus public item text → strict Zod validation → report persistence.
 
-All collections have timestamps. Public endpoints must use explicit response projections; never serialize arbitrary documents.
+At most 3 files × 5MB. Partial upload/save failures trigger cleanup of newly uploaded assets; replacement/deletion removes old assets after persistence. A Cloudinary cleanup failure is safely logged with an asset ID for operator retry. No client-supplied remote URL is fetched, preventing a remote-image SSRF path.
 
-| Collection | Core fields | Indexes / invariants |
-| --- | --- | --- |
-| User | name, normalized email, passwordHash (excluded by default), role, status, tokenVersion | Unique email; public registration assigns user role; suspended accounts cannot authenticate |
-| Report | owner, type lost/found, title, description, category, colour, location, occurredAt, images, status, moderation, analysis | Owner/createdAt; type/status/moderation/category/date; location; text search; image count bounded; public serializer excludes owner identifiers and image public IDs |
-| Match | source, candidate, score, explanation, method, algorithmVersion, interestedBy, expiresAt | Unique directed pair; source/score; TTL expiry; score is similarity 0–100 |
-| Claim | report, claimant, privateEvidence, status, history, reviewedBy, handoverAt | Claimant/date; report/status; unique report/claimant; at most one approved or handed-over claim per report via partial unique index |
-| Notification | recipient, kind, title, message, href, readAt | Recipient/readAt/createdAt; never include private claim evidence |
+The official `@google/genai` SDK is constructed only on the backend. `GEMINI_API_KEY` and `GEMINI_MODEL` enable it; request deadline 20 seconds, bounded structured JSON output, no tools. Prompt text explicitly treats item content as untrusted data. Zod enforces bounds and enums, and ranking output must contain exactly the requested unique candidate IDs. Errors yield an explicit unavailable state/fallback; raw provider errors are not logged. Prompt instructions are an additional guard, not a substitute for output validation. Owner corrections have separate provenance and do not silently rewrite their original description.
 
-Private evidence is in the Claim collection and excluded by default. Only the claimant and authorized administrators may request it through explicit projections. Finders do not automatically receive private claimant evidence. History is server-authored. Ownership changes, review decisions, and handovers must use transactions on Atlas so claims and reports stay consistent.
+## Matching and cost controls
 
-Report model and other workflow models are foundations, not active HTTP features yet. Their authorization, indexes on Atlas, and workflow invariants require integration validation in their respective milestones. Production disables automatic index creation: use a reviewed index migration before enabling new workflows.
+A report searches open, visible opposite-type reports belonging to other users. Dates are bounded to ±90 days; category is the same or other (an other-category source searches all categories). MongoDB retrieves at most 100 recent candidates. Local attribute scoring selects the top 8. One batch Gemini request compares only uncached candidates. Final similarity is 70% semantic score + 30% local score when AI succeeds; otherwise local scoring is used.
 
-## Identity and security
+Local score: category 25, colour token overlap 15, location overlap 15, title/description/keyword overlap 35, date proximity 10. This is an explainable heuristic, not a calibrated ownership probability. It has no geographic distance or visual-embedding database. Gemini supplies semantic reasoning from extracted image attributes and item text.
 
-- bcrypt with cost 12; passwords 12–72 UTF-8 bytes (avoid bcrypt truncation).
-- JWT signed with HS256, issuer/audience checked, fixed expiry, user ID as subject, token version checked against database on each protected request.
-- JWT stays in an HTTP-only cookie, never localStorage. SameSite=Lax locally; explicitly set SameSite=None + Secure for separate Vercel/Render origins.
-- Every modifying API request must carry an exact allowed Origin and `X-Requested-With: ClaimBack` header. This prevents cross-origin form requests and forces a CORS preflight for cross-site clients. `CLIENT_ORIGIN` is an explicit allowlist; no wildcard credentials.
-- Cookie has no Domain attribute and its path is restricted to `/api/v1`. Logout clears the cookie and increments tokenVersion, revoking all sessions for that user.
-- Authentication limits are stricter than general API limits. The initial in-memory limiter is per instance; add a shared store before horizontal scaling.
-- Helmet, bounded JSON body, request IDs, structured logs, centralized errors, whitelisted input fields, and no raw Mongo operators from client requests.
-- Trust proxy is explicit (0 locally, 1 on Render). Logs exclude passwords, cookies, API keys, evidence, database URIs, and request bodies.
-- No emailed password reset or email verification yet; add before public production use. MFA and stronger abuse controls are release-hardening considerations.
+Discovery refresh has a 15-minute cooldown. Scores cache for 24 hours with source and candidate revisions. Concurrent requests for one source share work within a process. Unchanged candidate scores survive discovery refresh without another AI call. Changed, closed, hidden, deleted or expired candidates are excluded. New arrivals are found on the next eligible refresh; there is no background worker or realtime push. Match/interest notifications are generated during workflows. The MVP targets one API instance; horizontal scaling would require distributed rate limits and matching locks.
 
-## AI and matching design (future milestone)
+## Human ownership review
 
-Use the official `@google/genai` SDK exclusively on the server. Configure a supported model through `GEMINI_MODEL` when implementing and validating the integration. Never silently choose a retired model.
+Claims contain private evidence excluded from default Mongoose projections. Explicit claim-detail authorization allows only claimant/admin; lists, public reports and notifications exclude evidence. Admin-only detail additionally supplies participant contacts for manual coordination. An administrator cannot review their own item or claim.
 
-1. Validate upload count, byte size, file signatures and actual decoded dimensions. Strip metadata and normalize the image. Upload via the backend to a controlled Cloudinary folder, with compensating cleanup on persistence failure.
-2. Send bounded image bytes and public report description to Gemini with an explicit schema: object, category enum, colours[], brand (nullable), characteristics[], distinctiveFeatures[], keywords[], improvedDescription. Treat image/text instructions as untrusted data; never include private evidence or credentials.
-3. Parse JSON and validate lengths, arrays and enums with Zod. Persist valid attributes and analysis provenance. On timeout, malformed output, missing key or quota failure, persist the original report with `analysis.status = unavailable` and allow retry. Users can correct attributes without losing originals/provenance.
-4. Retrieve at most 50 opposite-type, open, visible reports with indexed category/date/location filters. Exclude self-owned reports. Use a date window and tolerate unknown category so extraction errors do not eliminate plausible matches.
-5. Score category, colour, feature/keyword overlap, description, date proximity and location. Keep at most 8 candidates. Compare these in **one** bounded Gemini call, not one per item. Validate candidate IDs, score range and explanations; reject unexpected IDs or duplicates.
-6. Combine deterministic (40%) and semantic (60%) similarity when valid; otherwise use deterministic ranking. Cache directed results for 24 hours, invalidate after report edits, cap refreshes per user/report, and persist algorithm version.
-7. Display “similarity, not proof of ownership.” Expressing interest creates a notification; it never approves a claim.
+A MongoDB transaction performs the claim transition, report reservation/recovery, optional linked lost-report transition, history entries, competitor rejection and notifications. A partial unique index enforces a single approved/handed-over claim per found report. Approval races are tested. Atlas supports these transactions; a standalone local MongoDB instance does not.
 
-## Claim state machine (future milestone)
+## Existing security preserved
 
-`pending → approved | rejected | withdrawn`; `approved → handed_over | rejected` (cancellation requires reason). Final states cannot be silently overwritten. A pending claim requires a visible open found report, an authenticated claimant other than the finder, and bounded private evidence. Approval must atomically reserve the report and reject/resolve competing claims. Handover must be explicitly confirmed by an authorized human and audited. Suspensions and moderation must prevent new actions on affected content.
+bcrypt passwords; HTTP-only JWT cookies; issuer/audience checks; revocable token versions; role checks; strict input validation; trusted Origin plus custom-header mutation checks; explicit credentialed CORS; Helmet; no-store APIs; bounded request bodies and pagination; global/auth/costly-operation rate limits. Provider credentials stay in server/.env. Existing Atlas URI, DNS configuration and user accounts are not rewritten by this implementation.
 
-## Deployment
+## Provider references
 
-Frontend: Vercel, repository root, install `npm ci`, build `npm run build`, output `client/dist`. `vercel.json` handles client-side routing. Configure `VITE_API_URL=https://YOUR-API.onrender.com/api/v1` at build time.
-
-Backend: Render Node service with repository root, build `npm ci --omit=dev`, start `npm start`; health `/api/v1/health/ready`. Set production secrets, one trusted proxy and exact frontend origin. `render.yaml` is a starting blueprint. Cross-site browser cookie restrictions can affect separate domains: a shared parent domain (app.example.com/api.example.com) is preferable for the final release.
-
-Database: Atlas, dedicated least-privilege database user and restricted network access. Never commit credentials. Free-tier quotas, sleeping services and provider availability must be checked before deployment. No deployment occurs in this foundation milestone.
-
-## Documentation references
-
-- [Tailwind's Vite integration](https://tailwindcss.com/docs/installation/using-vite)
-- [Official Google Gen AI JavaScript SDK](https://googleapis.github.io/js-genai/)
 - [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output)
+- [Cloudinary Node uploads](https://cloudinary.com/documentation/node_image_and_video_upload)
+- [Sharp input limits](https://sharp.pixelplumbing.com/api-constructor/)

@@ -8,6 +8,7 @@ const historySchema = new mongoose.Schema({
 }, { _id: false });
 const schema = new mongoose.Schema({
   report: { type: mongoose.Schema.Types.ObjectId, ref: 'Report', required: true },
+  lostReport: { type: mongoose.Schema.Types.ObjectId, ref: 'Report' },
   claimant: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   privateEvidence: { type: String, required: true, minlength: 20, maxlength: 5000, select: false },
   status: { type: String, enum: states, default: 'pending' },
