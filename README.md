@@ -52,6 +52,8 @@ Only the claimant and administrators can access private evidence. Gemini never r
 
 ## Administrator setup
 
+Administrators use the normal [login page](http://127.0.0.1:5173/login), then **Dashboard → Administration**. The exact dashboard is [http://127.0.0.1:5173/admin](http://127.0.0.1:5173/admin). Claim review, report moderation and user management are tabs on this page; there is no separate administrator login.
+
 Create an account normally. An authorized operator can grant that existing active account administrator access:
 
 ```powershell
@@ -74,6 +76,8 @@ Tests create isolated temporary MongoDB databases, including a replica set for t
 `demo:synthetic` starts a separate disposable environment at **http://127.0.0.1:5174** with backend port 5001. It always creates its own temporary MongoDB replica set and does not read the Atlas URI for a connection. Its three synthetic users are `owner@example.test`, `finder@example.test`, and `admin@example.test`, with password `Synthetic-demo-only-2026!`. These are local test accounts only. Gemini/Cloudinary are intentionally disabled, so the demo clearly shows fallback matching. Type `stop` in that terminal to discard the entire isolated environment. Do not deploy this script or use its password for real accounts.
 
 ## Deployment
+
+Final review (1 November 2026): [44 backend tests and the production build passed; admin actions were verified and temporary admin fixtures cleaned up](docs/FINAL_VERIFICATION.md). The real account/permanent administrator and earlier Gemini/Cloudinary records were preserved. No public deployment was performed.
 
 See [deployment instructions](docs/DEPLOYMENT.md), [API contracts](docs/API.md), [architecture](docs/ARCHITECTURE.md), and [implementation/verification report](docs/IMPLEMENTATION_REPORT.md).
 
