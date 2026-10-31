@@ -8,3 +8,14 @@ coverage/
 .DS_Store
 .vercel/
 test-results/
+# Local-only verification documents
+/docs/ADMIN_CLEANUP_MANIFEST.json
+/docs/GEMINI_DIAGNOSIS.md
+/docs/MONGODB_DIAGNOSIS.md
+/docs/VERIFICATION.md
+/docs/LIVE_PROVIDER_VERIFICATION.md
+/docs/IMPLEMENTATION_REPORT.md
+/docs/admin-verification.png
+/docs/auth-browser-verification.png
+/docs/live-provider-recovery.png
+/docs/live-service-status.png

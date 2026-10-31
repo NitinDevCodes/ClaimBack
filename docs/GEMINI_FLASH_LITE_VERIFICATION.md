@@ -1,6 +1,6 @@
 # Gemini 3.5 Flash-Lite live verification — 31 October 2026
 
-**Passed: real generation, image understanding, validated structured extraction, description enhancement and ClaimBack semantic matching.** The backend now uses `gemini-3.5-flash-lite` with the existing API key ending `KPaw`.
+**Passed: real generation, image understanding, validated structured extraction, description enhancement and ClaimBack semantic matching.** The backend now uses `gemini-3.5-flash-lite` with the configured backend API key.
 
 Google documents this model on its [official model page](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite). Access was also checked directly with the configured key; documentation alone was not treated as proof of availability.
 
@@ -21,14 +21,12 @@ Only after all four checks passed was the single `GEMINI_MODEL` line in `server/
 
 ## Running ClaimBack workflow: actual providers and Atlas
 
-Run label: `LIVE-FLASH-LITE-73209bfe`.
-
 Two fresh synthetic accounts registered through the real application API. Each posted an actual photograph through `http://127.0.0.1:5173/api/v1/reports`, exercising Vite's proxy, authentication, image normalization, real Cloudinary upload, real Gemini calls and Atlas persistence. The synthetic event date was 31 October 1984, with a verified empty surrounding date window to avoid matching unrelated reports.
 
-| Report | ID | Persisted analysis |
-| --- | --- | --- |
-| Lost sneaker | `6ae60d8ce7c79c6b999af6fb` | `complete`, model `gemini-3.5-flash-lite` |
-| Found sneaker | `6ae60d90e7c79c6b999af704` | `complete`, model `gemini-3.5-flash-lite` |
+| Report | Persisted analysis |
+| --- | --- |
+| Lost sneaker | `complete`, model `gemini-3.5-flash-lite` |
+| Found sneaker | `complete`, model `gemini-3.5-flash-lite` |
 
 Both reports received image-derived attributes and enhanced descriptions. The found report returned a **93/100 hybrid score**, with **`method: gemini`**, against the synthetic lost report. The actual provider-generated explanation was:
 

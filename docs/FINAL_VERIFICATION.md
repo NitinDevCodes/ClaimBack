@@ -68,7 +68,7 @@ Only the exact records in the saved `ADMIN-VERIFY-76cc64c0` fixture manifest wer
 
 Deletion ran in one Atlas transaction after confirming a distinct permanent active administrator existed and that no outside reports/claims/matches referenced the target fixtures. Before/after snapshots of all non-target records matched. Remaining collection counts were 8 users, 8 reports, 2 claims, 3 matches and 12 notifications. The permanent administrator, real account and earlier Gemini/Cloudinary verification records were preserved. No uncertain records were deleted or identified.
 
-The exact deleted IDs and preserved permanent-administrator ID are in [ADMIN_CLEANUP_MANIFEST.json](ADMIN_CLEANUP_MANIFEST.json). Temporary passwords and cookies were removed from the ignored local fixture state. Prior verification records such as the Gemini-analyzed reports `6ae60d8ce7c79c6b999af6fb` and `6ae60d90e7c79c6b999af704` remain intact; the first was opened in the browser again after cleanup.
+A detailed cleanup manifest is retained locally and excluded from the public repository. Temporary passwords and cookies were removed from the ignored local fixture state. Prior verification records such as the Gemini-analyzed reports `6ae60d8ce7c79c6b999af6fb` and `6ae60d90e7c79c6b999af704` remain intact; the first was opened in the browser again after cleanup.
 
 The synthetic fixture setup used actual Atlas model inserts for pagination/admin test data, not Gemini output. Subsequent admin operations used the real browser/API. No private evidence is reproduced here or in the screenshot.
 
