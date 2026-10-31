@@ -9,6 +9,8 @@ it('classifies provider failures without copying credentials, private bodies or 
   assert.deepEqual(providerDiagnostic({ name: 'ZodError', message: 'private' }), { category: 'invalid_response' });
   assert.deepEqual(providerDiagnostic({ name: 'TimeoutError', message: 'secret' }), { category: 'timeout' });
   assert.deepEqual(providerDiagnostic({ status: 'secret', message: 'secret' }), { category: 'request_failed' });
+  assert.deepEqual(providerDiagnostic({ status: 503, message: JSON.stringify({ error: { message: 'This model is currently experiencing high demand. secret' } }) }), { category: 'provider_unavailable', status: 503, reason: 'model_capacity' });
+  assert.deepEqual(providerDiagnostic({ status: 504, message: 'Deadline expired before operation could complete. secret' }), { category: 'provider_unavailable', status: 504, reason: 'deadline_exceeded' });
 });
 it('logs canonical routes after Express error unwinding without query values or record IDs', () => {
   assert.equal(requestRoute({ originalUrl: '/api/v1/auth/me?private=secret', baseUrl: '', route: { path: '/me' } }), '/api/v1/auth/me');

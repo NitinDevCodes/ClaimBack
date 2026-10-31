@@ -2,7 +2,7 @@
 
 An integrated MERN lost-and-found application: public item search, secure accounts, photographs, Gemini item understanding, ranked matching, private ownership claims, human review, recovery tracking, dashboards and notifications.
 
-Live verification (31 October 2026): Cloudinary and the Atlas recovery workflow passed. Gemini model metadata authenticated, but real generation returned 503/504; successful live AI analysis/ranking remains unverified. See [the detailed live provider report](docs/LIVE_PROVIDER_VERIFICATION.md), including 44 passing backend tests and a successful production build.
+Live verification (31 October 2026): **Gemini 3.5 Flash-Lite passed real text, photograph understanding, structured extraction and ClaimBack semantic matching**, using the existing key. The backend now selects `gemini-3.5-flash-lite`. See [the successful live verification report](docs/GEMINI_FLASH_LITE_VERIFICATION.md). Cloudinary and the Atlas recovery workflow also passed [earlier live checks](docs/LIVE_PROVIDER_VERIFICATION.md); the previous automated run passed 44 backend tests and the production build. [Gemini 3.8 diagnosis](docs/GEMINI_DIAGNOSIS.md) records that model's earlier capacity failures.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ npm run dev
 - Backend: http://127.0.0.1:5000/api/v1/health
 - Readiness: http://127.0.0.1:5000/api/v1/health/ready
 - Root `npm run dev` starts both workspaces. Keep that process running. Closing it stops the servers; a stopped server produces `ERR_CONNECTION_REFUSED`.
-- Vite proxies `/api` to port 5000. Restart the backend after changing `server/.env`.
+- Vite proxies `/api` to port 5000. The development backend watches `server/.env` as well as source files; production requires an explicit restart after environment changes. Restart an already-running older dev command once to use the new watcher.
 
 ## Configuration
 

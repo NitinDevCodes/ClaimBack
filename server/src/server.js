@@ -6,6 +6,7 @@ import { databaseDiagnostic } from './utils/databaseDiagnostics.js';
 
 async function start() {
   const env = parseEnv();
+  logger.info('ai_configuration', { configured: Boolean(env.GEMINI_API_KEY && env.GEMINI_MODEL), model: env.GEMINI_MODEL, keySuffix: env.GEMINI_API_KEY.slice(-4) });
   if (env.ephemeralSecret) logger.info('temporary_session_key', { message: 'Set JWT_SECRET in server/.env to keep sessions valid across restarts.' });
   try { await connectDatabase(env); }
   catch (error) {

@@ -1,5 +1,7 @@
 # Live provider verification — 31 October 2026
 
+**Later result:** [Gemini 3.5 Flash-Lite passed live verification](GEMINI_FLASH_LITE_VERIFICATION.md) with the same key and is now configured. The Gemini failures below describe the earlier 3.8 verification run; Cloudinary and recovery findings remain applicable.
+
 Cloudinary and the actual Atlas recovery workflow passed live verification. Gemini credentials authenticated model metadata requests, but content generation did **not** succeed. This is not a successful end-to-end AI demonstration yet.
 
 ## Verification boundaries

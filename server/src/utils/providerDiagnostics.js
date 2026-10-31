@@ -6,5 +6,9 @@ export function providerDiagnostic(error) {
       : status >= 500 && status <= 599 ? 'provider_unavailable'
         : ['ZodError', 'SyntaxError'].includes(error?.name) || error?.message === 'InvalidResponse' ? 'invalid_response'
           : /timeout|abort/i.test(error?.name || '') ? 'timeout' : 'request_failed';
-  return { category, ...(Number.isInteger(status) && status >= 400 && status <= 599 ? { status } : {}) };
+  // Emit only fixed labels, including when the SDK wraps a JSON error in a string.
+  const message = typeof error?.message === 'string' ? error.message : '';
+  const reason = status === 503 && /this model is currently experiencing high demand/i.test(message) ? 'model_capacity'
+    : status === 504 && /deadline expired|deadline_exceeded/i.test(message) ? 'deadline_exceeded' : undefined;
+  return { category, ...(Number.isInteger(status) && status >= 400 && status <= 599 ? { status } : {}), ...(reason ? { reason } : {}) };
 }

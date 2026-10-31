@@ -1,6 +1,6 @@
 # Implementation and verification report — 31 October 2026
 
-Later live-provider verification supersedes the provider-configuration status in this implementation snapshot: Cloudinary and the actual Atlas recovery workflow passed; Gemini generation remains unavailable despite successful metadata authentication. See [Live provider verification](LIVE_PROVIDER_VERIFICATION.md) for current results, fixes and limitations.
+Later live-provider verification supersedes the provider-configuration status in this implementation snapshot: Cloudinary and the actual Atlas recovery workflow passed, and [Gemini 3.5 Flash-Lite passed real analysis and matching](GEMINI_FLASH_LITE_VERIFICATION.md). The backend now selects that model. See [earlier live provider verification](LIVE_PROVIDER_VERIFICATION.md) for Cloudinary/recovery results and historical Gemini 3.8 failures.
 
 ## Outcome
 
