@@ -65,6 +65,7 @@ it('validates browse filters, identity, dates and malicious uploads', async () =
 it('enforces owner-only edits, optimistic revision checks and correctable AI attributes', async () => {
   await call('stranger', 'patch', `/reports/${foundId}`).send({ revision: 0, title: 'Stolen edit' }).expect(404);
   await call('finder', 'patch', `/reports/${foundId}`).send({ revision: 0, title: 'Green synthetic library backpack' }).expect(200);
+  assert.equal((await Report.findById(foundId)).colour, 'green', 'partial updates must not reset an omitted colour to its create default');
   await call('finder', 'patch', `/reports/${foundId}`).send({ revision: 0, title: 'Stale edit' }).expect(409);
   const corrected = await call('finder', 'patch', `/reports/${foundId}/attributes`).send({ revision: 1, attributes: { ...attrs, brand: 'Unknown' } }).expect(200);
   assert.equal(corrected.body.data.analysis.status, 'corrected');

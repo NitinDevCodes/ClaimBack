@@ -1,5 +1,7 @@
 # Implementation and verification report — 31 October 2026
 
+Later live-provider verification supersedes the provider-configuration status in this implementation snapshot: Cloudinary and the actual Atlas recovery workflow passed; Gemini generation remains unavailable despite successful metadata authentication. See [Live provider verification](LIVE_PROVIDER_VERIFICATION.md) for current results, fixes and limitations.
+
 ## Outcome
 
 The existing authentication foundation has been extended into an integrated ClaimBack application. The React interface is connected to Express endpoints backed by the existing Atlas configuration. No existing user was promoted, edited, removed or seeded during this work. No Atlas URI, DNS resolver, TLS-validation or IP-access configuration was changed by the implementation. The user updated their current Atlas IP entry after a transient connection failure; the real claimback connection was then verified again.

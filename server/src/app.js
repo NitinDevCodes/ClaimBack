@@ -13,6 +13,7 @@ import { AppError } from './utils/AppError.js';
 import { logger } from './utils/logger.js';
 import { reportRoutes } from './routes/report.routes.js';
 import { workflowRoutes } from './routes/workflow.routes.js';
+import { requestRoute } from './utils/requestRoute.js';
 
 export function createApp(env, { getDatabaseStatus = databaseStatus, logRequests = true, services = {} } = {}) {
   const app = express();
@@ -23,7 +24,7 @@ export function createApp(env, { getDatabaseStatus = databaseStatus, logRequests
     res.set('X-Request-Id', req.id);
     if (logRequests) {
       const started = performance.now();
-      res.on('finish', () => logger.info('http_request', { requestId: req.id, method: req.method, route: req.route ? `${req.baseUrl || ''}${req.route.path}` : 'unmatched_route', status: res.statusCode, durationMs: Math.round(performance.now() - started) }));
+      res.on('finish', () => logger.info('http_request', { requestId: req.id, method: req.method, route: requestRoute(req), status: res.statusCode, durationMs: Math.round(performance.now() - started) }));
     }
     next();
   });

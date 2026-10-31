@@ -2,6 +2,8 @@
 
 An integrated MERN lost-and-found application: public item search, secure accounts, photographs, Gemini item understanding, ranked matching, private ownership claims, human review, recovery tracking, dashboards and notifications.
 
+Live verification (31 October 2026): Cloudinary and the Atlas recovery workflow passed. Gemini model metadata authenticated, but real generation returned 503/504; successful live AI analysis/ranking remains unverified. See [the detailed live provider report](docs/LIVE_PROVIDER_VERIFICATION.md), including 44 passing backend tests and a successful production build.
+
 ## Run locally
 
 Requires Node.js 22.12+ and npm. Use MongoDB Atlas or a replica set; claim/recovery operations use transactions.

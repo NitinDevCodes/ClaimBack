@@ -11,7 +11,7 @@ import { attributesSchema } from '../services/ai.service.js';
 import { logger } from '../utils/logger.js';
 
 const reportSchema = z.object({ type: z.enum(['lost', 'found']), title: z.string().trim().min(3).max(120), description: z.string().trim().min(10).max(3000), category: z.enum(categories), colour: z.string().trim().max(80).default(''), location: z.string().trim().min(2).max(200), occurredAt: z.coerce.date().refine((d) => d <= new Date(Date.now() + 86400000), 'Date cannot be in the future.') }).strict();
-const editableSchema = reportSchema.omit({ type: true }).partial().extend({ revision: z.coerce.number().int().min(0), clearImages: z.enum(['true', 'false']).optional(), status: z.enum(['open', 'closed']).optional() }).strict();
+const editableSchema = reportSchema.omit({ type: true }).partial().extend({ colour: z.string().trim().max(80).optional(), revision: z.coerce.number().int().min(0), clearImages: z.enum(['true', 'false']).optional(), status: z.enum(['open', 'closed']).optional() }).strict();
 const visible = { moderation: 'visible', deletedAt: null };
 export async function ownedReport(req) {
   const report = await Report.findOne({ _id: parse(idSchema, req.params.id), owner: req.user._id, deletedAt: null });
